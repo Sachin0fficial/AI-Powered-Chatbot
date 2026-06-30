@@ -1,17 +1,16 @@
 package com.ai.gemini_chat.Services;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.Map;
-
 @Service
 public class QnAService {
+
     @Value("${gemini.api.url}")
     private String geminiApiUrl;
 
@@ -19,47 +18,56 @@ public class QnAService {
     private String geminiApiKey;
 
     private final WebClient webClient;
+    private final ObjectMapper objectMapper;
 
-    public QnAService(WebClient.Builder webClient) {
-        this.webClient = webClient.build();
+    public QnAService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper) {
+        this.webClient = webClientBuilder.build();
+        this.objectMapper = objectMapper;
     }
-    
-    @Autowired
-    private ObjectMapper objectMapper;
 
     public String getAnswer(String question) {
+        if (geminiApiKey == null || geminiApiKey.isBlank()) {
+            return "Gemini API key is not configured. Set GEMINI_API_KEY environment variable.";
+        }
+
         Map<String, Object> requestBody = Map.of(
                 "contents", new Object[] {
                         Map.of("parts", new Object[] {
                                 Map.of("text", question)
-                        } )
+                        })
                 }
         );
 
-        String response = webClient.post()
+        try {
+            String response = webClient.post()
                     .uri(geminiApiUrl + geminiApiKey)
-                    .header("Content-Type","application/json")
+                    .header("Content-Type", "application/json")
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
 
-        
-        return extractModelResponse(response);
-}
- 
-    
+            return extractModelResponse(response);
+        } catch (WebClientResponseException e) {
+            return "AI service error: " + e.getStatusCode().value() + ". Please try again later.";
+        } catch (Exception e) {
+            return "Unable to reach AI service. Please try again later.";
+        }
+    }
+
     private String extractModelResponse(String jsonResponse) {
         try {
             JsonNode rootNode = objectMapper.readTree(jsonResponse);
-            return rootNode.path("candidates").get(0) 
-                    .path("content").path("parts").get(0) 
-                    .path("text").asText(); 
+            JsonNode candidates = rootNode.path("candidates");
+            if (candidates.isEmpty()) {
+                JsonNode error = rootNode.path("error").path("message");
+                return error.isMissingNode() ? "No response from AI." : error.asText();
+            }
+            return candidates.get(0)
+                    .path("content").path("parts").get(0)
+                    .path("text").asText();
         } catch (Exception e) {
-            return "Error parsing response: " + e.getMessage();
+            return "Error parsing AI response. Please try again.";
         }
     }
-    
-   
-    
 }

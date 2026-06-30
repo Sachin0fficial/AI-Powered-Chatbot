@@ -1,0 +1,24 @@
+# Build outputs
+gemini-chat/target/
+Frontend/dist/
+Frontend/node_modules/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+Thumbs.db

@@ -1,41 +1,34 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { auth } from "../services/api";
+import AuthLayout from "./auth/AuthLayout";
 
-const RegisterPage = () => {
+const RegistrationForm = () => {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
-
     const [passwordError, setPasswordError] = useState("");
-    const [confirmPasswordError, setConfirmPasswordError] = useState("");
-
-    const validatePassword = (password) => {
-        const regex =
-            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!regex.test(password)) {
-            setPasswordError(
-                "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character."
-            );
-        } else {
-            setPasswordError("");
-        }
-    };
-
-    const validateConfirmPassword = (confirmPassword) => {
-        if (confirmPassword !== password) {
-            setConfirmPasswordError("Passwords do not match.");
-        } else {
-            setConfirmPasswordError("");
-        }
-    };
-
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    const validatePassword = (pwd) => {
+        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!regex.test(pwd)) {
+            setPasswordError(
+                "Password must be 8+ chars with uppercase, lowercase, number, and special character."
+            );
+            return false;
+        }
+        setPasswordError("");
+        return true;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
 
         if (!name || !email || !password || !confirmPassword) {
             setError("Please fill in all fields.");
@@ -47,192 +40,110 @@ const RegisterPage = () => {
             return;
         }
 
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters long.");
+        if (!validatePassword(password)) {
             return;
         }
 
-        const data = {
-            name: name,
-            email: email,
-            password: password,
-        };
-
-        // try {
-        //     const response = await axios.post(
-        //         "http://localhost:8080/register",
-        //         data
-        //     );
-
-        //     if (response.status === 200) {
-        //         navigate("/login");
-        //     } else {
-        //         setError("Registration failed.  Please try again.");
-        //         console.error("Registration failed:", response);
-        //     }
-        // } catch (err) {
-        //     console.error("Registration error:", err);
-
-        //     if (err.response) {
-        //         setError(err.response.data || "Registration failed.");
-        //     } else if (err.request) {
-        //         setError("No response from server. Please try again.");
-        //     } else {
-        //         setError("An error occurred while registering.");
-        //     }
-        // }
+        setLoading(true);
         try {
-            const response = await axios.post(
-                "http://localhost:8080/register",
-                data
-            );
-
-            if (response.status === 200) {
-                navigate("/login");
-            } else {
-                setError("Registration failed. Please try again.");
-                console.error("Registration failed:", response);
-            }
+            await auth.register({ name, email, password });
+            toast.success("Account created! Please sign in.");
+            navigate("/login");
         } catch (err) {
-            console.error("Registration error:", err);
-
-            if (err.response) {
-                if (err.response.status === 409) {
-                    setError("User already exists. Please log in.");
-                } else {
-                    setError(err.response.data || "Registration failed.");
-                }
-            } else if (err.request) {
-                setError("No response from server. Please try again.");
+            if (err.response?.status === 409) {
+                setError("User already exists. Please log in.");
             } else {
-                setError("An error occurred while registering.");
+                const msg = err.response?.data || "Registration failed";
+                setError(typeof msg === "string" ? msg : "Registration failed");
             }
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8">
+        <AuthLayout
+            title="Create your account"
+            subtitle="Or"
+            linkText="sign in instead"
+            linkTo="/login"
+        >
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        Create a new account
-                    </h2>
-                    <p className="mt-2 text-center text-sm text-gray-600">
-                        Or{" "}
-                        <Link
-                            to="/login"
-                            className="font-medium text-indigo-600 hover:text-indigo-500"
-                        >
-                            Sign in to an existing account
-                        </Link>
-                    </p>
+                    <label htmlFor="name" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                        Name
+                    </label>
+                    <input
+                        id="name"
+                        type="text"
+                        autoComplete="name"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="auth-input"
+                        placeholder="Your name"
+                    />
                 </div>
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <input type="hidden" name="remember" value="true" />
-                    <div className="rounded-md">
-                        <div className="mb-4">
-                            <label htmlFor="name" className="sr-only">
-                                Name
-                            </label>
-                            <input
-                                id="name"
-                                name="name"
-                                type="text"
-                                autoComplete="name"
-                                required
-                                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                placeholder="Your Name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label htmlFor="email-address" className="sr-only">
-                                Email address
-                            </label>
-                            <input
-                                id="email-address"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                placeholder="Email address"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label htmlFor="password" className="sr-only">
-                                Password
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="new-password"
-                                required
-                                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                placeholder="Password"
-                                value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                    validatePassword(e.target.value);
-                                }}
-                            />
-                            {passwordError && (
-                                <p className="text-red-500 text-xs mt-1">
-                                    {passwordError}
-                                </p>
-                            )}
-                        </div>
-                        <div className="mb-4">
-                            <label
-                                htmlFor="confirm-password"
-                                className="sr-only"
-                            >
-                                Confirm Password
-                            </label>
-                            <input
-                                id="confirm-password"
-                                name="confirm-password"
-                                type="password"
-                                autoComplete="new-password"
-                                required
-                                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                placeholder="Confirm Password"
-                                value={confirmPassword}
-                                onChange={(e) => {
-                                    setConfirmPassword(e.target.value);
-                                    validateConfirmPassword(e.target.value);
-                                }}
-                            />
-                            {confirmPasswordError && (
-                                <p className="text-red-500 text-xs mt-1">
-                                    {confirmPasswordError}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    {error && (
-                        <div className="text-red-500 text-sm mt-2" role="alert">
-                            {error}
-                        </div>
+                <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                        Email
+                    </label>
+                    <input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="auth-input"
+                        placeholder="you@example.com"
+                    />
+                </div>
+                <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                        Password
+                    </label>
+                    <input
+                        id="password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        value={password}
+                        onChange={(e) => {
+                            setPassword(e.target.value);
+                            validatePassword(e.target.value);
+                        }}
+                        className="auth-input"
+                        placeholder="Strong password"
+                    />
+                    {passwordError && (
+                        <p className="text-red-400 text-xs mt-1">{passwordError}</p>
                     )}
-
-                    <div>
-                        <button
-                            type="submit"
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                            Register
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                </div>
+                <div>
+                    <label htmlFor="confirm-password" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                        Confirm Password
+                    </label>
+                    <input
+                        id="confirm-password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="auth-input"
+                        placeholder="Confirm password"
+                    />
+                </div>
+                {error && (
+                    <div className="text-red-400 text-sm" role="alert">{error}</div>
+                )}
+                <button type="submit" disabled={loading} className="auth-button">
+                    {loading ? "Creating account..." : "Create account"}
+                </button>
+            </form>
+        </AuthLayout>
     );
 };
 
-export default RegisterPage;
+export default RegistrationForm;

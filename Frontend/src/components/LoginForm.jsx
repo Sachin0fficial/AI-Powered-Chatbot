@@ -1,114 +1,88 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { auth } from "../services/api";
+import AuthLayout from "./auth/AuthLayout";
 
-const LoginPage = () => {
+const LoginForm = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
 
         if (!email || !password) {
             setError("Please enter both email and password.");
             return;
         }
 
+        setLoading(true);
         try {
-            const response = await axios.get(
-                `http://localhost:8080/login/${email}/${password}`
-            );
-
-            if (response.status === 200) {
-                navigate("/home");
-            } else {
-                setError("Login failed. Invalid credentials.");
-            }
-        } catch (error) {
-            console.error("Login error:", error);
-            if (error.response) {
-                setError(error.response.data || "Login failed");
-            } else {
-                setError("An error occurred while logging in.");
-            }
+            const response = await auth.login({ email, password });
+            const { token, email: userEmail, name } = response.data;
+            sessionStorage.setItem("token", token);
+            sessionStorage.setItem("user", JSON.stringify({ email: userEmail, name }));
+            toast.success("Welcome back!");
+            navigate("/home");
+        } catch (err) {
+            const msg = err.response?.data || "Invalid username or password";
+            setError(typeof msg === "string" ? msg : "Login failed");
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8">
+        <AuthLayout
+            title="Sign in to Master AI"
+            subtitle="Or"
+            linkText="create an account"
+            linkTo="/"
+        >
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        Sign in to your account
-                    </h2>
-                    <p className="mt-2 text-center text-sm text-gray-600">
-                        Or{" "}
-                        <Link
-                            to="/"
-                            className="font-medium text-indigo-600 hover:text-indigo-500"
-                        >
-                            register for an account
-                        </Link>
-                    </p>
+                    <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                        Email
+                    </label>
+                    <input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="auth-input"
+                        placeholder="you@example.com"
+                    />
                 </div>
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <input type="hidden" name="remember" value="true" />
-                    <div className="rounded-md">
-                        <div className="mb-4">
-                            <label htmlFor="email-address" className="sr-only">
-                                Email address
-                            </label>
-                            <input
-                                id="email-address"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                placeholder="Email address"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label htmlFor="password" className="sr-only">
-                                Password
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                required
-                                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                placeholder="Password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    {error && (
-                        <div className="text-red-500 text-sm mt-2" role="alert">
-                            {error}
-                        </div>
-                    )}
-
-                    <div>
-                        <button
-                            type="submit"
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                            Sign in
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                        Password
+                    </label>
+                    <input
+                        id="password"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="auth-input"
+                        placeholder="Your password"
+                    />
+                </div>
+                {error && (
+                    <div className="text-red-400 text-sm" role="alert">{error}</div>
+                )}
+                <button type="submit" disabled={loading} className="auth-button">
+                    {loading ? "Signing in..." : "Sign in"}
+                </button>
+            </form>
+        </AuthLayout>
     );
 };
 
-export default LoginPage;
+export default LoginForm;
