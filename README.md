@@ -325,6 +325,6 @@ MIT
 **Sachin Vishwakarma**
 
 - GitHub: [@Sachin0fficial](https://github.com/Sachin0fficial)
-- Email: sachinofficial71@gmail.com
+- Email: imvsachin@gmail.com
 
 Built as an AI-powered chatbot with Gemini, Spring Boot, React, and RAG for efficient long-context conversations.
